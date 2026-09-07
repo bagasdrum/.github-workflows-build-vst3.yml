@@ -1,0 +1,52 @@
+name: Build VST3 Binaries
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  # Migrasi GitHub Actions runner ke Node.js 24 untuk menghilangkan peringatan deprecation Node 20
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: ChordScope-Windows-VST3
+            build_dir: build/ChordScope_artefacts/Release/VST3
+          - os: macos-latest
+            artifact_name: ChordScope-macOS-VST3-AU
+            build_dir: build/ChordScope_artefacts/Release
+          - os: ubuntu-latest
+            artifact_name: ChordScope-Linux-VST3
+            build_dir: build/ChordScope_artefacts/Release/VST3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxinerama-dev libxext-dev libfreetype6-dev libgl1-mesa-dev libxcursor-dev
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3 and AU
+        run: cmake --build build --config Release --parallel
+
+      - name: Upload VST3 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.build_dir }}
